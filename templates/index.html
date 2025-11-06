@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Psyduck — Outfit Assistant 🐤</title>
+  <link rel="stylesheet" href="/static/style.css"> 
+</head>
+<body>
+
+  <div class="app-container">
+
+    <div class="chat-panel">
+      <header>
+        <h1>psyduck 🐤</h1>
+        <div class="button-group">
+          <a href="/logs" target="_blank" style="text-decoration:none;">
+            <button title="View Logs">Logs</button>
+          </a>
+          <button id="reset-btn" title="Reset Chat">Reset</button>
+        </div>
+      </header>
+      
+      <div id="chat-box" class="chat-box"></div>
+      
+      <div id="debug-json"></div>
+      
+      <div class="input-area">
+        <input id="user-input" type="text" placeholder="send a message..." autocomplete="off" />
+        <button id="send-btn">Send</button>
+      </div>
+
+      <footer class="chat-footer">
+        Made with ❤️ by ladybug-me
+      </footer>
+    </div>
+
+    <div class="gallery-panel">
+      <div id="gallery-grid" class="gallery-grid">
+        <div class="gallery-welcome">
+          <video class="welcome-video" src="/static/psyduck_video.mp4" autoplay loop muted playsinline></video>
+          <img src="/static/easter_egg.jpg" alt="Easter Egg" class="easter-egg-img" />
+          <h2>Welcome to Psyduck</h2>
+          <p>Your fashion results will appear here.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <button id="toggle-debug">🪞 Debug</button>
+
+  <script>
+  let conversation_id = null;
+  let isTyping = false;
+  let intentSession = null;
+  let currentIntent = {};
+  let lastQuery = "";
+
+  const chatBox = document.getElementById("chat-box");
+  const userInput = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+  const resetBtn = document.getElementById("reset-btn");
+  const debugBox = document.getElementById("debug-json");
+  const toggleDebugBtn = document.getElementById("toggle-debug");
+
+  // Gallery elements
+  const galleryGrid = document.getElementById("gallery-grid");
+
+  function appendMessage(role, text) {
+    const msg = document.createElement("div");
+    msg.className = role === "user" ? "msg user" : "msg bot";
+    msg.textContent = text;
+    chatBox.appendChild(msg);
+    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
+    return msg;
+  }
+
+  function showTyping(show = true) {
+    let typingMsg = chatBox.querySelector(".typing");
+    if (show && !typingMsg) {
+      typingMsg = document.createElement("div");
+      typingMsg.className = "msg bot typing";
+      typingMsg.textContent = "💭 Psyduck is thinking...";
+      chatBox.appendChild(typingMsg);
+      chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
+    } else if (!show && typingMsg) {
+      typingMsg.remove();
+    }
+  }
+
+  // === Main Conversation Flow ===
+  async function handleSend() {
+    const text = userInput.value.trim();
+    if (!text || isTyping) return;
+    
+    appendMessage("user", text);
+    userInput.value = "";
+    isTyping = true;
+    showTyping(true);
+
+    let endpoint = "/chat";
+    let body = {
+      text: text,
+      conversation_id: conversation_id
+    };
+
+    if (intentSession) {
+      endpoint = "/intent/answer";
+      body = {
+        session_id: intentSession,
+        answer: text
+      };
+    } else {
+      lastQuery = text;
+    }
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      
+      showTyping(false);
+      
+      if (data.conversation_id) conversation_id = data.conversation_id;
+      if (data.intent) currentIntent = data.intent;
+      if (data.intent_session_id) {
+        intentSession = data.intent_session_id;
+        showIntentDebug("intent_start", data);
+      }
+
+      if (data.reply) appendMessage("bot", data.reply);
+      else if (data.question) appendMessage("bot", data.question);
+
+      let isComplete = data.complete || data.intent_complete;
+      if (isComplete) {
+        if (intentSession) {
+          appendMessage("bot", "✨ Thanks! Let me find that for you...");
+        }
+        intentSession = null;
+        showIntentDebug("intent_complete", data);
+        await showOutfits(lastQuery, currentIntent);
+      }
+      
+    } catch (err) {
+      showTyping(false);
+      appendMessage("bot", "⚠️ Network error or Psyduck fainted.");
+    } finally {
+      isTyping = false;
+    }
+  }
+
+  // === UPDATED: Outfit recommendation (populates right panel) ===
+  async function showOutfits(query, intent) {
+    const searchingMsg = appendMessage("bot", "🧩 Searching Psyduck’s wardrobe...");
+    galleryGrid.innerHTML = `<div class="gallery-welcome"><p>Searching...</p></div>`; // Placeholder
+    
+    try {
+      const res = await fetch("/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query, intent: intent })
+      });
+      const data = await res.json();
+      
+      showIntentDebug("recommend", data);
+
+      if (!data.results?.length) {
+        searchingMsg.textContent = "😵 No suitable outfits found.";
+        galleryGrid.innerHTML = `<div class="gallery-welcome"><p>No results found.</p></div>`;
+        return;
+      }
+      
+      // Clear old grid
+      galleryGrid.innerHTML = "";
+      
+      // Build the cards and show 20
+      data.results
+        .slice(0, 20) // Show 20 images
+        .forEach((o, index) => {
+          const card = document.createElement("div");
+          card.className = "outfit-card";
+          card.style.animationDelay = `${index * 0.05}s`;
+          
+          card.innerHTML = `
+            <img src="${o.image}" alt="${o.display_name}" />
+            <div class="info">
+              <strong>${o.display_name}</strong>
+              <small>${o.category}</small>
+            </div>
+          `;
+          galleryGrid.appendChild(card);
+        });
+
+      // No view switch, just update the chat
+      searchingMsg.textContent = `✅ I found ${data.results.length} outfits for you!`;
+
+    } catch (err) {
+      searchingMsg.textContent = "⚠️ Error loading outfits.";
+      galleryGrid.innerHTML = `<div class="gallery-welcome"><p>Error loading outfits.</p></div>`;
+    }
+  }
+
+  // === Debug JSON view ===
+  function showIntentDebug(stage, data) {
+    debugBox.textContent += `\n\n🧠 [${stage.toUpperCase()}]\n` + JSON.stringify(data, null, 2);
+    debugBox.scrollTo({ top: debugBox.scrollHeight });
+  }
+
+  // === Event Listeners ===
+  sendBtn.addEventListener("click", handleSend);
+  userInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  resetBtn.addEventListener("click", async () => {
+    if (conversation_id) {
+      try {
+        await fetch("/reset", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_id: conversation_id })
+        });
+      } catch (err) { console.error("Failed to reset backend:", err); }
+    }
+    
+    chatBox.innerHTML = "";
+    debugBox.textContent = "";
+    debugBox.classList.remove("visible");
+    
+    // MODIFIED: Clear the gallery and restore the video welcome screen
+    galleryGrid.innerHTML = `<div class="gallery-welcome"><video class="welcome-video" src="/static/psyduck_video.mp4" autoplay loop muted playsinline></video><img src="/static/easter_egg.jpg" alt="Easter Egg" class="easter-egg-img" /><h2>Welcome to Psyduck</h2><p>Your fashion results will appear here.</p></div>`;
+    
+    appendMessage("bot", "🧹 Chat reset! Let’s start fresh!");
+    
+    intentSession = null;
+    currentIntent = {};
+    conversation_id = null;
+    lastQuery = "";
+  });
+  
+  // MODIFIED: Debug button now also toggles the easter egg
+  toggleDebugBtn.addEventListener("click", () => {
+    // Toggle debug text
+    debugBox.classList.toggle("visible");
+
+    // --- Easter Egg Toggle ---
+    const welcomeVideo = document.querySelector(".welcome-video");
+    const easterEggImg = document.querySelector(".easter-egg-img");
+
+    // Only run if the welcome elements are currently on the page
+    if (welcomeVideo && easterEggImg) {
+      // Check which one is currently visible and swap them
+      if (window.getComputedStyle(welcomeVideo).display !== "none") {
+        welcomeVideo.style.display = "none";
+        easterEggImg.style.display = "block";
+      } else {
+        welcomeVideo.style.display = "block";
+        easterEggImg.style.display = "none";
+      }
+    }
+  });
+
+  // Start the chat
+  appendMessage("bot", "Psy-yi-yi... My head hurts. 🤕 But fashion is easy!");
+  </script>
+</body>
+</html>

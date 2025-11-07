@@ -635,3 +635,68 @@
 [2025-11-07 02:03:13] [EXTRACT] Session=06da16d2-b871-49a0-9319-458fca8d9644 | Field=style | Answer='sport' | Extracted='sporty'
 [2025-11-07 02:03:13] [INTENT_COMPLETE] Session=06da16d2-b871-49a0-9319-458fca8d9644 | Final={'occasion': 'school', 'category': 'jacket', 'formality': 'casual', 'gender': 'male', 'color': 'midnight-blue', 'style': 'sporty'}
 [2025-11-07 02:03:13] [RECOMMEND_QUERY] Original: 'need help to pick an outfit' | Final: 'need help to pick an outfit sporty midnight-blue jacket for a school event casual'
+[2025-11-07 08:44:35] [CHAT_TRIAGE] Conv=28011a85-8876-4b8a-a419-22ce75c7a432 | Text='i want to go to a casual meeting' | Triage='NEW_REQUEST'
+[2025-11-07 08:44:35] [CHAT_TO_INTENT] Conv=28011a85-8876-4b8a-a419-22ce75c7a432 | Starting new intent flow for: 'i want to go to a casual meeting'
+[2025-11-07 08:44:35] [SESSION_START] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Query='i want to go to a casual meeting'
+[2025-11-07 08:44:39] [PREFILL] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Filled 2 fields | Intent={'occasion': 'office', 'category': None, 'formality': 'casual', 'gender': None, 'color': None, 'style': None}
+[2025-11-07 08:44:41] [INTENT_FIRST_QUESTION] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=category | Question='For your casual office vibe, are you picturing a crisp shirt, comfy jeans, sleek shoes, or something else?'
+[2025-11-07 08:45:11] [TRIAGE] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=category | Answer='comfy jeans' | Triage='ANSWER'
+[2025-11-07 08:45:12] [EXTRACT] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=category | Answer='comfy jeans' | Extracted='jeans'
+[2025-11-07 08:45:35] [TRIAGE] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=gender | Answer='a chic lady' | Triage='ANSWER'
+[2025-11-07 08:45:37] [EXTRACT] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=gender | Answer='a chic lady' | Extracted='female'
+[2025-11-07 08:45:58] [TRIAGE] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=color | Answer='sky blue' | Triage='ANSWER'
+[2025-11-07 08:45:59] [EXTRACT] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=color | Answer='sky blue' | Extracted='sky blue'
+[2025-11-07 08:46:15] [TRIAGE] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=style | Answer='sport swagger' | Triage='ANSWER'
+[2025-11-07 08:46:16] [EXTRACT] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Field=style | Answer='sport swagger' | Extracted='sporty'
+[2025-11-07 08:46:16] [INTENT_COMPLETE] Session=7f9dd54b-4337-4a2f-b01b-f0cd8837a17c | Final={'occasion': 'office', 'category': 'jeans', 'formality': 'casual', 'gender': 'female', 'color': 'sky blue', 'style': 'sporty'}
+[2025-11-07 08:46:16] [RECOMMEND_QUERY] Original: 'i want to go to a casual meeting' | Final: 'i want to go to a casual meeting sporty sky blue jeans for a office event casual'
+[2025-11-07 08:46:39] [RESET] Conv=28011a85-8876-4b8a-a419-22ce75c7a432 cleared.
+[2025-11-07 08:46:46] [CHAT_TRIAGE] Conv=e0c23934-02ce-4c0a-a5fb-6ef002a38aaf | Text='i want a shoe' | Triage='NEW_REQUEST'
+[2025-11-07 08:46:46] [CHAT_TO_INTENT] Conv=e0c23934-02ce-4c0a-a5fb-6ef002a38aaf | Starting new intent flow for: 'i want a shoe'
+[2025-11-07 08:46:46] [SESSION_START] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Query='i want a shoe'
+[2025-11-07 08:46:49] [PREFILL] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Filled 2 fields | Intent={'occasion': None, 'category': 'shoes', 'formality': 'casual', 'gender': None, 'color': None, 'style': None}
+[2025-11-07 08:46:50] [INTENT_FIRST_QUESTION] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=occasion | Question='Got any fun plans—like a coffee catch‑up, a chill park walk, or maybe a casual movie night?'
+[2025-11-07 08:48:09] [TRIAGE] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=occasion | Answer='coffe catch -up' | Triage='ANSWER'
+[2025-11-07 08:48:12] [EXTRACT] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=occasion | Answer='coffe catch -up' | Extracted='catch-up'
+[2025-11-07 08:48:50] [TRIAGE] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=gender | Answer='unisex' | Triage='ANSWER'
+[2025-11-07 08:48:51] [EXTRACT] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=gender | Answer='unisex' | Extracted='unisex'
+[2025-11-07 08:49:21] [TRIAGE] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=color | Answer='daring teal' | Triage='ANSWER'
+[2025-11-07 08:49:22] [EXTRACT] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=color | Answer='daring teal' | Extracted='teal'
+[2025-11-07 08:49:41] [TRIAGE] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=style | Answer='whisper boho-chill vibes' | Triage='ANSWER'
+[2025-11-07 08:49:42] [EXTRACT] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Field=style | Answer='whisper boho-chill vibes' | Extracted='boho'
+[2025-11-07 08:49:42] [INTENT_COMPLETE] Session=2b9282b5-0c0f-41d9-bb26-e5e9397708a3 | Final={'occasion': 'catch-up', 'category': 'shoes', 'formality': 'casual', 'gender': 'unisex', 'color': 'teal', 'style': 'boho'}
+[2025-11-07 08:49:42] [RECOMMEND_QUERY] Original: 'i want a shoe' | Final: 'i want a shoe boho teal shoes for a catch-up event casual'
+[2025-11-07 08:55:10] [RESET] Conv=e0c23934-02ce-4c0a-a5fb-6ef002a38aaf cleared.
+[2025-11-07 09:17:23] [CHAT_TRIAGE] Conv=388f88c1-0a68-4b24-844f-0c496c1493f5 | Text='i want to go to a casual meeting' | Triage='NEW_REQUEST'
+[2025-11-07 09:17:23] [CHAT_TO_INTENT] Conv=388f88c1-0a68-4b24-844f-0c496c1493f5 | Starting new intent flow for: 'i want to go to a casual meeting'
+[2025-11-07 09:17:23] [SESSION_START] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Query='i want to go to a casual meeting'
+[2025-11-07 09:17:27] [PREFILL] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Filled 2 fields | Intent={'occasion': 'office', 'category': None, 'formality': 'casual', 'gender': None, 'color': None, 'style': None}
+[2025-11-07 09:17:29] [INTENT_FIRST_QUESTION] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=category | Question='For a relaxed office vibe, are you eyeing a comfy top, smart pants, or perhaps a sleek pair of shoes?'
+[2025-11-07 09:18:22] [TRIAGE] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=category | Answer='shoes' | Triage='ANSWER'
+[2025-11-07 09:18:24] [EXTRACT] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=category | Answer='shoes' | Extracted='shoes'
+[2025-11-07 09:18:57] [TRIAGE] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=gender | Answer='unisex' | Triage='ANSWER'
+[2025-11-07 09:18:59] [EXTRACT] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=gender | Answer='unisex' | Extracted='unisex'
+[2025-11-07 09:19:16] [TRIAGE] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=color | Answer='red' | Triage='ANSWER'
+[2025-11-07 09:19:18] [EXTRACT] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=color | Answer='red' | Extracted='red'
+[2025-11-07 09:19:39] [TRIAGE] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=style | Answer='sneaky-sporty' | Triage='ANSWER'
+[2025-11-07 09:19:44] [EXTRACT] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Field=style | Answer='sneaky-sporty' | Extracted='sporty'
+[2025-11-07 09:19:44] [INTENT_COMPLETE] Session=b98baa11-f08d-4d69-b568-f1969c016cd1 | Final={'occasion': 'office', 'category': 'shoes', 'formality': 'casual', 'gender': 'unisex', 'color': 'red', 'style': 'sporty'}
+[2025-11-07 09:19:44] [RECOMMEND_QUERY] Original: 'i want to go to a casual meeting' | Final: 'i want to go to a casual meeting sporty red shoes for a office event casual'
+[2025-11-07 09:20:14] [RESET] Conv=388f88c1-0a68-4b24-844f-0c496c1493f5 cleared.
+[2025-11-07 09:20:26] [CHAT_TRIAGE] Conv=a922a299-7b54-4eae-9eed-4c2816ec7a81 | Text='hi' | Triage='CHAT'
+[2025-11-07 09:33:02] [CHAT_TRIAGE] Conv=c6cdd895-67e9-4521-b9eb-76a62dd7d4f8 | Text='we are going for a casual meeting' | Triage='NEW_REQUEST'
+[2025-11-07 09:33:02] [CHAT_TO_INTENT] Conv=c6cdd895-67e9-4521-b9eb-76a62dd7d4f8 | Starting new intent flow for: 'we are going for a casual meeting'
+[2025-11-07 09:33:02] [SESSION_START] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Query='we are going for a casual meeting'
+[2025-11-07 09:33:05] [PREFILL] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Filled 2 fields | Intent={'occasion': 'office', 'category': None, 'formality': 'casual', 'gender': None, 'color': None, 'style': None}
+[2025-11-07 09:33:07] [INTENT_FIRST_QUESTION] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=category | Question='Which office‑friendly piece are you after—something like a crisp shirt, relaxed jeans, or a pair of sleek shoes?'
+[2025-11-07 09:33:36] [TRIAGE] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=category | Answer='relaxed jeans' | Triage='ANSWER'
+[2025-11-07 09:33:38] [EXTRACT] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=category | Answer='relaxed jeans' | Extracted='jeans'
+[2025-11-07 09:34:10] [TRIAGE] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=gender | Answer='unisex' | Triage='ANSWER'
+[2025-11-07 09:34:11] [EXTRACT] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=gender | Answer='unisex' | Extracted='unisex'
+[2025-11-07 09:34:35] [TRIAGE] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=color | Answer='sky blue' | Triage='ANSWER'
+[2025-11-07 09:34:37] [EXTRACT] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=color | Answer='sky blue' | Extracted='sky blue'
+[2025-11-07 09:35:31] [TRIAGE] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=style | Answer='sporty jeans' | Triage='ANSWER'
+[2025-11-07 09:35:33] [EXTRACT] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Field=style | Answer='sporty jeans' | Extracted='sporty'
+[2025-11-07 09:35:33] [INTENT_COMPLETE] Session=5706f1a7-8f31-4582-8066-5aed21674a49 | Final={'occasion': 'office', 'category': 'jeans', 'formality': 'casual', 'gender': 'unisex', 'color': 'sky blue', 'style': 'sporty'}
+[2025-11-07 09:35:33] [RECOMMEND_QUERY] Original: 'we are going for a casual meeting' | Final: 'we are going for a casual meeting sporty sky blue jeans for a office event casual'
+[2025-11-07 09:44:00] [RESET] Conv=c6cdd895-67e9-4521-b9eb-76a62dd7d4f8 cleared.

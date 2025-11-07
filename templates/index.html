@@ -41,7 +41,7 @@
           <video class="welcome-video" src="/static/psyduck_video.mp4" autoplay loop muted playsinline></video>
           <img src="/static/easter_egg.jpg" alt="Easter Egg" class="easter-egg-img" />
           <h2>Welcome to Psyduck</h2>
-          <p>Your fashion results will appear here.</p>
+          <p>Leave your outfit headaches to Psyduck</p>
         </div>
       </div>
     </div>
@@ -81,7 +81,7 @@
     if (show && !typingMsg) {
       typingMsg = document.createElement("div");
       typingMsg.className = "msg bot typing";
-      typingMsg.textContent = "💭 Psyduck is thinking...";
+      typingMsg.textContent = "💭 Psyduck is getting a headache...";
       chatBox.appendChild(typingMsg);
       chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
     } else if (!show && typingMsg) {

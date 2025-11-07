@@ -93,6 +93,7 @@ Psyduck uses Ollama for local AI model inference.
 1. **Download & Install Ollama Desktop**  
    - Download Ollama from [https://ollama.com/download](https://ollama.com/download)  
    - Install it on your OS.
+   - Note you need to signin in the ollama app in order to access the gpt-oss:120b-cloud model (can be changed in app.py)
 
 2. **Expose Ollama to Your Network**  
    - Open the Ollama Desktop settings.

@@ -10,8 +10,8 @@
 
 ## Language Composition
 
-- **HTML** (80%)
-- **Python** (10.3%)
+- **PYTHON** (80%)
+- **HTML** (10.3%)
 - **CSS** (9.7%)
 
 ---

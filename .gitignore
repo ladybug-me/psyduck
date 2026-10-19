@@ -1,0 +1,8 @@
+.venv/
+.vscode/
+*__pycache__/
+data/data
+data/database
+data/data.csv
+data/fashion.db
+data/fashion.index

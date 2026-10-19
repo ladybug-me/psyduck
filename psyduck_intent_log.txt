@@ -727,3 +727,40 @@
 [2026-10-19 11:47:07] [EXTRACT_FAILED] Session=213c4b82-8ac6-49e8-b60e-bad8daec83d1 | Field='gender' | Answer='your choice'
 [2026-10-19 11:47:12] [TRIAGE] Session=213c4b82-8ac6-49e8-b60e-bad8daec83d1 | Field=gender | Answer='male' | Triage='ANSWER'
 [2026-10-19 11:47:12] [EXTRACT] Session=213c4b82-8ac6-49e8-b60e-bad8daec83d1 | Field=gender | Answer='male' | Extracted='male'
+[2026-10-19 11:59:52] [CHAT_TRIAGE_ERROR] Conv=aba09b99-7135-4880-a6d4-2db4976120d0 | Error=401 Client Error: Unauthorized for url: http://127.0.0.1:11434/api/generate
+[2026-10-19 12:01:26] [CHAT_TRIAGE] Conv=5179b6c8-3690-4aae-97d9-ca150f375aed | Text='hi' | Triage='CHAT' | Resolved=False
+[2026-10-19 12:01:39] [CHAT_TRIAGE] Conv=5179b6c8-3690-4aae-97d9-ca150f375aed | Text='i want to go to a wedding' | Triage='NEW_REQUEST' | Resolved=True
+[2026-10-19 12:01:39] [CHAT_TO_INTENT] Conv=5179b6c8-3690-4aae-97d9-ca150f375aed | Starting new intent flow for: 'i want to go to a wedding'
+[2026-10-19 12:01:39] [SESSION_START] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Query='i want to go to a wedding'
+[2026-10-19 12:01:40] [PREFILL] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Filled 2 fields | Intent={'occasion': 'wedding', 'category': None, 'formality': 'formal', 'gender': None, 'color': None, 'style': None}
+[2026-10-19 12:01:41] [INTENT_FIRST_QUESTION] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=category | Question='Which do you prefer: a suit or a dress for the wedding?'
+[2026-10-19 12:01:58] [TRIAGE] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=category | Answer='suit' | Triage='ANSWER'
+[2026-10-19 12:02:00] [EXTRACT] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=category | Answer='suit' | Extracted='suit'
+[2026-10-19 12:02:05] [TRIAGE] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=gender | Answer='male' | Triage='ANSWER'
+[2026-10-19 12:02:06] [EXTRACT] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=gender | Answer='male' | Extracted='male'
+[2026-10-19 12:02:33] [TRIAGE] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=color | Answer='black' | Triage='ANSWER'
+[2026-10-19 12:02:34] [EXTRACT] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=color | Answer='black' | Extracted='black'
+[2026-10-19 12:02:43] [TRIAGE] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=style | Answer='classic look' | Triage='ANSWER'
+[2026-10-19 12:02:44] [EXTRACT] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Field=style | Answer='classic look' | Extracted='classic'
+[2026-10-19 12:02:44] [INTENT_COMPLETE] Session=655b704a-3336-45f4-9ac4-cec1ba169b40 | Final={'occasion': 'wedding', 'category': 'suit', 'formality': 'formal', 'gender': 'male', 'color': 'black', 'style': 'classic'}
+[2026-10-19 12:02:44] [RECOMMEND_QUERY] Original: 'i want to go to a wedding' | Final: 'i want to go to a wedding classic black suit for a wedding event formal'
+[2026-10-19 12:04:05] [CHAT_TRIAGE] Conv=4736d11d-52bf-4592-8d63-d6fbe8ebb1af | Text='I am going to office' | Triage='CHAT' | Resolved=False
+[2026-10-19 12:04:34] [CHAT_TRIAGE] Conv=4736d11d-52bf-4592-8d63-d6fbe8ebb1af | Text='show me some examples' | Triage='NEW_REQUEST' | Resolved=True
+[2026-10-19 12:04:34] [CHAT_TO_INTENT] Conv=4736d11d-52bf-4592-8d63-d6fbe8ebb1af | Starting new intent flow for: 'show me some examples'
+[2026-10-19 12:04:34] [SESSION_START] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Query='show me some examples'
+[2026-10-19 12:04:35] [PREFILL] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Filled 0 fields | Intent={'occasion': None, 'category': None, 'formality': None, 'gender': None, 'color': None, 'style': None}
+[2026-10-19 12:04:36] [INTENT_FIRST_QUESTION] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=occasion | Question='What’s the occasion—perhaps a wedding or a casual picnic?'
+[2026-10-19 12:04:52] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=occasion | Answer='for business purposes' | Triage='ANSWER'
+[2026-10-19 12:04:53] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=occasion | Answer='for business purposes' | Extracted='office'
+[2026-10-19 12:04:59] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=category | Answer='shirt' | Triage='ANSWER'
+[2026-10-19 12:05:00] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=category | Answer='shirt' | Extracted='shirt'
+[2026-10-19 12:05:06] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=formality | Answer='casual' | Triage='ANSWER'
+[2026-10-19 12:05:06] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=formality | Answer='casual' | Extracted='casual'
+[2026-10-19 12:05:10] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=gender | Answer='male' | Triage='ANSWER'
+[2026-10-19 12:05:11] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=gender | Answer='male' | Extracted='male'
+[2026-10-19 12:05:21] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=color | Answer='blueish black' | Triage='ANSWER'
+[2026-10-19 12:05:22] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=color | Answer='blueish black' | Extracted='black'
+[2026-10-19 12:05:28] [TRIAGE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=style | Answer='classic' | Triage='ANSWER'
+[2026-10-19 12:05:28] [EXTRACT] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Field=style | Answer='classic' | Extracted='classic'
+[2026-10-19 12:05:28] [INTENT_COMPLETE] Session=70e03ce2-ca78-44a8-93d4-f8db51978b94 | Final={'occasion': 'office', 'category': 'shirts', 'formality': 'casual', 'gender': 'male', 'color': 'black', 'style': 'classic'}
+[2026-10-19 12:05:29] [RECOMMEND_QUERY] Original: 'show me some examples' | Final: 'show me some examples classic black shirts for a office event casual'

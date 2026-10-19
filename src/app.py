@@ -93,18 +93,19 @@ def append_message(conv_id: str, role: str, text: str):
             conversation_store[conv_id] = conversation_store[conv_id][-MAX_TURNS:]
 
 def build_prompt(conv_id: str, user_text: str) -> str:
-    # This build_prompt is now only for "general chat" / FOLLOW_UP
+    """Build a structured conversational prompt for general chat/follow-ups."""
     base = [
-        "You are Psyduck — a witty but helpful fashion assistant.",
-        "You are in a follow-up conversation. Chat naturally with the user about their last request or answer their general questions."
+        "System: You are Psyduck, a helpful, polite, and concise fashion styling assistant.",
+        "System: Provide direct styling advice in 1 to 3 short sentences. Focus entirely on fashion and outfits.",
+        "System: Do not invent fictional user turns or repeat system prompts."
     ]
     with store_lock:
         history = conversation_store.get(conv_id, [])
-    for m in history:
-        role = "User" if m["role"] == "user" else "Psyduck"
+    for m in history[-6:]:
+        role = "User" if m["role"] == "user" else "Assistant"
         base.append(f"{role}: {m['text']}")
     base.append(f"User: {user_text}")
-    base.append("Psyduck:")
+    base.append("Assistant:")
     return "\n".join(base)
 
 def parse_ollama_response(resp_text: str) -> str:
@@ -168,12 +169,21 @@ intent_manager = IntentManager()
 # FIELD DEFINITIONS & NORMALIZER
 
 FIELD_DEFINITIONS = {
-    "occasion": "the event type such as wedding, party, interview, picnic, or office.",
-    "category": "the type of clothing item, such as a T-shirt, jeans, shoes, or a jacket.",
+    "occasion": "the event type such as wedding, party, interview, picnic, date, gym, or office.",
+    "category": "the clothing item type such as t-shirt, shirt, dress, suit, jeans, trousers, jacket, or shoes.",
     "formality": "the dress code level such as casual, semi-formal, formal, or business.",
-    "gender": "the intended wearer’s gender such as male, female, or unisex.",
-    "color": "the primary color of the item, such as red, blue, black, or white.",
-    "style": "the overall fashion vibe such as sporty, elegant, streetwear, vintage, boho, or classic."
+    "gender": "the intended wearer's gender: male, female, or unisex.",
+    "color": "the primary color of the item, such as black, white, blue, red, green, or navy.",
+    "style": "the overall fashion aesthetic such as sporty, elegant, streetwear, vintage, boho, or classic."
+}
+
+FIELD_HINTS = {
+    "occasion": "Valid examples include: wedding, party, birthday, office, date, gym, casual, vacation, interview, social.",
+    "category": "Valid examples include: t-shirt, shirt, suit, dress, jeans, trousers, jacket, shoes, sneakers, skirt.",
+    "formality": "Valid values are strictly: casual, semi-formal, formal, business.",
+    "gender": "Valid values are strictly: male, female, unisex (or man, woman, boy, girl).",
+    "color": "Valid examples include: black, white, blue, red, green, yellow, navy, grey, brown, pink, beige.",
+    "style": "Valid examples include: sporty, elegant, vintage, streetwear, casual, classic, minimalist, bohemian."
 }
 
 def normalize_field_value(field: str, val: str) -> str:
@@ -236,31 +246,28 @@ async def begin_intent_flow(user_query: str):
     session_id, session = intent_manager.start(user_query)
     log_event("session_start", f"Session={session_id} | Query='{user_query}'")
 
-    # Step 2: Try to pre-fill the intent
+    # Step 2: Try to pre-fill the intent with high-clarity extraction prompt
     extract_prompt = (
-        f"You are an expert fashion entity extractor. Fill a JSON object based on the user's request. Leave unmentioned fields as null.\n"
-        f"--- FIELDS ---\n"
-        " occasion: (e.g., 'wedding', 'party')\n"
-        " category: (e.g., 't-shirt', 'shoes', 'dress')\n"
-        " formality: (e.g., 'casual', 'formal')\n"
-        " gender: (e.g., 'male', 'female', 'unisex')\n"
-        " color: (e.g., 'red', 'blue', 'black')\n"
-        " style: (e.g., 'sporty', 'elegant', 'vintage')\n"
-        f"--- END FIELDS ---\n\n"
-        
-        f"--- Example 1 ---\n"
+        "Task: You are a strict fashion entity extraction engine. Extract attributes from the user's outfit request into valid JSON.\n\n"
+        "Attributes to extract:\n"
+        f"- occasion ({FIELD_DEFINITIONS['occasion']})\n"
+        f"- category ({FIELD_DEFINITIONS['category']})\n"
+        f"- formality ({FIELD_DEFINITIONS['formality']})\n"
+        f"- gender ({FIELD_DEFINITIONS['gender']})\n"
+        f"- color ({FIELD_DEFINITIONS['color']})\n"
+        f"- style ({FIELD_DEFINITIONS['style']})\n\n"
+        "Rules:\n"
+        "1. Extract ONLY attributes explicitly stated or clearly implied by the user.\n"
+        "2. If an attribute is NOT mentioned, set its value to null.\n"
+        "3. Output ONLY a valid JSON object with keys: \"occasion\", \"category\", \"formality\", \"gender\", \"color\", \"style\".\n"
+        "4. Do NOT output markdown code blocks or explanations.\n\n"
+        "Examples:\n"
         "Request: \"i need a black suit for a wedding\"\n"
-        "JSON: {{\"occasion\": \"wedding\", \"category\": \"suit\", \"formality\": \"formal\", \"gender\": \"male\", \"color\": \"black\", \"style\": \"formal\"}}\n\n"
-        
-        f"--- Example 2 ---\n"
-        "Request: \"need a frock\"\n"
-        "JSON: {{\"occasion\": null, \"category\": \"frock\", \"formality\": \"casual\", \"gender\": \"female\", \"color\": null, \"style\": null}}\n\n"
-
-        f"--- Example 3 ---\n"
-        "Request: \"something sporty for the gym\"\n"
-        "JSON: {{\"occasion\": \"gym\", \"category\": null, \"formality\": \"casual\", \"gender\": null, \"color\": null, \"style\": \"sporty\"}}\n\n"
-        
-        f"--- CURRENT TASK ---\n"
+        "JSON: {\"occasion\": \"wedding\", \"category\": \"suit\", \"formality\": \"formal\", \"gender\": \"male\", \"color\": \"black\", \"style\": \"classic\"}\n\n"
+        "Request: \"looking for running shoes for gym\"\n"
+        "JSON: {\"occasion\": \"gym\", \"category\": \"shoes\", \"formality\": \"casual\", \"gender\": null, \"color\": null, \"style\": \"sporty\"}\n\n"
+        "Request: \"summer dress in red\"\n"
+        "JSON: {\"occasion\": \"casual\", \"category\": \"dress\", \"formality\": \"casual\", \"gender\": \"female\", \"color\": \"red\", \"style\": null}\n\n"
         f"Request: \"{user_query}\"\n"
         "JSON:"
     )
@@ -307,20 +314,20 @@ async def begin_intent_flow(user_query: str):
         log_event("intent_complete", f"Session={session_id} | Completed via pre-fill | Final={session['intent']}")
         return {"complete": True, "intent": session["intent"], "session_id": session_id, "question": "Thanks! I've got everything I need!"}
 
-    # Step 5: Ask the first question
-    
-    # Get the current intent state for context
+    # Step 5: Ask the first question with clear scope and examples
     intent_context = ", ".join([f"{k}: {v}" for k, v in session['intent'].items() if v])
-    if not intent_context: intent_context = "(No details yet)"
+    if not intent_context: intent_context = "(None yet)"
     
     ask_prompt = (
-        f"You are Psyduck, a helpful fashion assistant.\n"
-        f"You *must* ask a question to get the value for this one field: '{current_field}'.\n"
-        f"Field definition: {FIELD_DEFINITIONS.get(current_field, 'a fashion detail')}.\n"
-        f"Current info: {intent_context}\n\n"
-        "Ask a *single*, short, creative, and conversational question.\n"
-        "Do *not* just ask 'What [field] are you looking for?'.\n"
-        "Your question:"
+        "Role: You are Psyduck, a friendly and concise fashion advisor.\n"
+        f"Context: The user wants an outfit. Known details: {intent_context}.\n"
+        f"Missing Attribute to Ask: '{current_field}' ({FIELD_DEFINITIONS.get(current_field, '')}).\n"
+        f"Attribute Guide: {FIELD_HINTS.get(current_field, '')}\n\n"
+        "Instructions:\n"
+        f"1. Ask exactly ONE clear, short question (under 15 words) asking for their preference for '{current_field}'.\n"
+        "2. Include 2 quick examples in the question to help guide their answer.\n"
+        "3. Output ONLY the question sentence. No greetings, quotes, or preambles.\n\n"
+        "Question:"
     )
     
     q = f"What {current_field} are you looking for?" # Default
@@ -380,17 +387,16 @@ async def chat(data: ChatInput):
     context_str = "\n".join(history_context)
     append_message(conv_id, "user", user_text) # Append the new message *after* getting history
 
-    # Step 1: Triage
-    
-    # This prompt now classifies refinements as NEW_REQUEST
+    # Step 1: Triage (classify message with strict categories)
     triage_prompt = (
-        f"You are a conversation router. Classify the 'New User Message'.\n"
-        f"--- CONTEXT ---\n{context_str}\n--- END CONTEXT ---\n\n"
-        f"New User Message: \"{user_text}\"\n\n"
-        "Classify the message into one of two categories:\n"
-        "1. 'NEW_REQUEST': The user is starting a *new* outfit request, OR trying to *change* or *refine* a previous one (e.g., 'i need a suit', 'i am male', 'what about in black?').\n"
-        "2. 'CHAT': A general comment, question, or continuation of a non-outfit topic (e.g., 'thanks', 'ok', 'what's the weather?', 'yes', 'just show').\n"
-        "Respond with only 'NEW_REQUEST' or 'CHAT'."
+        "Task: Determine if the user's message is a fashion outfit request or general conversational chatter.\n\n"
+        f"Recent History:\n{context_str}\n\n"
+        f"User Message: \"{user_text}\"\n\n"
+        "Categories:\n"
+        "- NEW_REQUEST: The user is requesting an outfit, asking for clothes, requesting recommendations, or specifying/changing style attributes (e.g. 'i need clothes', 'show suits', 'what about in blue?', 'black shoes').\n"
+        "- CHAT: General pleasantries, jokes, greetings, or non-clothing talk (e.g. 'hi', 'thank you', 'how are you', 'tell me a joke', 'ok cool').\n\n"
+        "Instructions: Output exactly ONE word: NEW_REQUEST or CHAT. Do not write explanation or punctuation.\n"
+        "Classification:"
     )
     
     is_new_request = False
@@ -403,15 +409,17 @@ async def chat(data: ChatInput):
         r_triage.raise_for_status()
         res_text = (r_triage.json().get("response") or "CHAT").strip().upper()
         
-        if res_text.startswith("NEW_REQUEST"):
+        # Robust classification check with keyword fallback
+        fashion_keywords = ["need", "want", "wear", "outfit", "dress", "suit", "shoes", "shirt", "pants", "jeans", "style", "recommend", "looking for"]
+        if "NEW_REQUEST" in res_text or any(k in user_text.lower() for k in fashion_keywords):
             is_new_request = True
         else:
-            is_new_request = False # Default to CHAT
+            is_new_request = False
             
-        log_event("chat_triage", f"Conv={conv_id} | Text='{user_text}' | Triage='{res_text}'")
+        log_event("chat_triage", f"Conv={conv_id} | Text='{user_text}' | Triage='{res_text}' | Resolved={is_new_request}")
     except Exception as e:
         log_event("chat_triage_error", f"Conv={conv_id} | Error={e}")
-        is_new_request = False # Fail safe
+        is_new_request = False
 
     # ... (rest of the /chat function) ...
     
@@ -491,18 +499,16 @@ async def intent_answer(body: dict):
 
     # Step 1: Triage - Is this an answer or a question?
     triage_prompt = (
-        f"You are a text classifier. Your *only* job is to output one of two words: 'QUESTION' or 'ANSWER'.\n\n"
-        "A 'QUESTION' is when the user is confused, asks for a definition, or asks *about* the field (e.g., 'what does that mean?', 'why?', 'what is formality?').\n"
-        "An 'ANSWER' is when the user provides a value *for* the field (e.g., 'male', 'casual', 'party', 'summer').\n\n"
-        "--- Examples ---\n"
-        "Bot: What formality?\nUser: what's that?\nYour classification: QUESTION\n\n"
-        "Bot: What gender?\nUser: male\nYour classification: ANSWER\n\n"
-        "Bot: What color?\nUser: i'm not sure\nYour classification: ANSWER\n\n"
-        "Bot: What style?\nUser: casual\nYour classification: ANSWER\n"
-        "--- End Examples ---\n\n"
-        "--- CURRENT TASK ---\n"
-        f"Bot: What {current_field}?\nUser: \"{answer}\"\n"
-        "Your classification:"
+        "Task: Classify whether the user is asking a QUESTION about what a fashion field means, or providing an ANSWER.\n\n"
+        f"Context: The assistant asked for '{current_field}' ({FIELD_DEFINITIONS.get(current_field, '')}).\n"
+        f"User Response: \"{answer}\"\n\n"
+        "Classifications:\n"
+        "- QUESTION: The user asks what the field means, asks for help/explanation, or asks why (e.g. 'what does that mean?', 'what is formality?', 'explain', 'huh?').\n"
+        "- ANSWER: The user gives a preference, value, or choice (e.g. 'formal', 'male', 'red', 'casual', 'birthday', 'idk', 'any').\n\n"
+        "Rules:\n"
+        "1. Output exactly ONE word: QUESTION or ANSWER.\n"
+        "2. Do not write punctuation or explanation.\n\n"
+        "Classification:"
     )
     
     triage_result = "ANSWER"
@@ -514,7 +520,8 @@ async def intent_answer(body: dict):
         )
         r_triage.raise_for_status()
         res_text = (r_triage.json().get("response") or "ANSWER").strip().upper()
-        if res_text.startswith("QUESTION"):
+        question_signals = ["?", "what is", "what does", "meaning", "explain", "why", "what do you mean", "huh", "what's"]
+        if "QUESTION" in res_text or any(sig in answer.lower() for sig in question_signals):
             triage_result = "QUESTION"
         else:
             triage_result = "ANSWER"
@@ -529,12 +536,16 @@ async def intent_answer(body: dict):
     if triage_result == "QUESTION":
         log_event("clarification", f"Session={session_id} | Field='{current_field}' | User is confused: '{answer}'")
         clarify_prompt = (
-            f"You are Psyduck, a helpful fashion assistant.\n"
-            f"You are trying to get the field '{current_field}'.\n"
-            f"The user was confused and asked: \"{answer}\".\n"
-            f"First, politely answer their question using this definition: '{FIELD_DEFINITIONS.get(current_field, 'a detail about your outfit')}'\n"
-            f"Second, *re-ask* the original question for '{current_field}' in a clear, direct way.\n"
-            "Only output your helpful response."
+            "Role: You are Psyduck, a concise fashion assistant.\n"
+            f"The user is asking about the outfit attribute '{current_field}'.\n"
+            f"Definition: {FIELD_DEFINITIONS.get(current_field, 'a detail about your outfit')}.\n"
+            f"Guide/Examples: {FIELD_HINTS.get(current_field, '')}\n"
+            f"User Question: \"{answer}\"\n\n"
+            "Instructions:\n"
+            f"1. Explain what '{current_field}' means in 1 brief sentence using the definition.\n"
+            f"2. Re-ask what they prefer for '{current_field}' in 1 short sentence offering 2 examples.\n"
+            "3. Keep entire response under 30 words. No greetings or filler.\n\n"
+            "Response:"
         )
         try:
             r2 = requests.post(
@@ -546,7 +557,7 @@ async def intent_answer(body: dict):
             next_q = (r2.json().get("response") or "My mistake!").strip()
         except Exception as e:
             log_event("clarify_error", f"Session={session_id} | Field={current_field} | Error={e}")
-            next_q = f"Sorry, I wasn't clear. {FIELD_DEFINITIONS.get(current_field)}. So, what is the {current_field}?"
+            next_q = f"{current_field.capitalize()} refers to {FIELD_DEFINITIONS.get(current_field, 'your preference')}. What {current_field} would you prefer?"
         return {
             "complete": False, "next_field": current_field, "question": next_q,
             "intent": session["intent"], "note": "clarification_provided"
@@ -554,12 +565,15 @@ async def intent_answer(body: dict):
 
     # --- PATH B: User gave an ANSWER ---
     interpret_prompt = (
-        f"You are a short-answer entity extractor.\n"
-        f"The bot asked the user for the field: '{current_field}' (which means: {FIELD_DEFINITIONS.get(current_field, 'a user detail')}).\n"
-        f"The user answered: \"{answer}\"\n\n"
-        "What is the single best value for the '{current_field}' field based *only* on the user's answer?\n"
-        "Respond with only that value (e.g., 'birthday', 'formal', 'male').\n"
-        "If the answer is irrelevant or unclear, respond with the single word 'UNKNOWN'."
+        f"Task: Extract the user's value for the fashion attribute '{current_field}'.\n\n"
+        f"Attribute: '{current_field}' ({FIELD_DEFINITIONS.get(current_field, '')})\n"
+        f"Valid Guide: {FIELD_HINTS.get(current_field, '')}\n"
+        f"User Input: \"{answer}\"\n\n"
+        "Instructions:\n"
+        f"1. Extract ONLY the single concise value for '{current_field}' from the user's input.\n"
+        f"2. If the user input does NOT provide a valid value for '{current_field}', or says 'no', 'yes', 'idk', or is irrelevant, output exactly: UNKNOWN\n"
+        "3. Output ONLY the extracted value or UNKNOWN. Do not add quotes, markdown, or explanation.\n\n"
+        "Extracted Value:"
     )
     try:
         r = requests.post(
@@ -569,8 +583,21 @@ async def intent_answer(body: dict):
         )
         r.raise_for_status()
         val = (r.json().get("response") or "UNKNOWN").strip().strip('"\'.,!?').lower()
-        invalids = ["unknown", "i don't know", "not sure", "none", "no idea", "maybe", "idk", "", "yes", "ok", "okay", "sure"]
-        if val in invalids or len(val.split()) > 5: val = "UNKNOWN"
+        invalids = ["unknown", "i don't know", "not sure", "none", "no idea", "maybe", "idk", "", "yes", "ok", "okay", "sure", "no", "nah", "nope"]
+        if val in invalids or len(val.split()) > 4:
+            val = "UNKNOWN"
+
+        # Deterministic domain checks to prevent small model hallucinations
+        if current_field == "gender" and val not in ["male", "female", "unisex", "man", "men", "woman", "women", "boy", "girl"]:
+            val = "UNKNOWN"
+        if current_field == "formality" and val not in ["casual", "semi-formal", "formal", "business"]:
+            for f_val in ["casual", "semi-formal", "formal", "business"]:
+                if f_val in val:
+                    val = f_val
+                    break
+            else:
+                val = "UNKNOWN"
+
         log_event("extract", f"Session={session_id} | Field={current_field} | Answer='{answer}' | Extracted='{val}'")
     except Exception as e:
         log_event("extract_error", f"Session={session_id} | Field={current_field} | Error={e}")
@@ -578,7 +605,7 @@ async def intent_answer(body: dict):
 
     if val.upper() == "UNKNOWN":
         log_event("extract_failed", f"Session={session_id} | Field='{current_field}' | Answer='{answer}'")
-        next_q = f"Hmm, I didn't quite catch that for {current_field}. Could you try again? (This refers to: {FIELD_DEFINITIONS.get(current_field)})"
+        next_q = f"Could you clarify your {current_field}? ({FIELD_HINTS.get(current_field, FIELD_DEFINITIONS.get(current_field))})"
         return {
             "complete": False, "next_field": current_field, "question": next_q,
             "intent": session["intent"], "note": "extraction_failed"
@@ -602,14 +629,15 @@ async def intent_answer(body: dict):
     if not intent_context: intent_context = "(No details yet)"
 
     ask_prompt = (
-        f"You are Psyduck, a helpful fashion assistant.\n"
-        f"You *must* ask a question to get the value for this one field: '{next_field}'.\n"
-        f"Field definition: {FIELD_DEFINITIONS.get(next_field, 'a fashion detail')}.\n"
-        f"Current info: {intent_context}\n\n"
-        "Ask a *single*, short, creative, and conversational question.\n"
-        "Use emoji and make user feel funny.\n"
-        "Do *not* just ask 'What [field] are you looking for?'.\n"
-        "Your question:"
+        "Role: You are Psyduck, a professional and concise fashion assistant.\n"
+        f"Context: Known outfit preferences: {intent_context}.\n"
+        f"Next Attribute to Ask: '{next_field}' ({FIELD_DEFINITIONS.get(next_field, '')}).\n"
+        f"Attribute Guide: {FIELD_HINTS.get(next_field, '')}\n\n"
+        "Instructions:\n"
+        f"1. Ask exactly ONE short, professional question (under 15 words) asking for the user's preference for '{next_field}'.\n"
+        "2. Provide 2 quick examples in the question to assist the user.\n"
+        "3. Output ONLY the question. Do not include quotes, emojis, or introductory remarks.\n\n"
+        "Question:"
     )
 
     try:

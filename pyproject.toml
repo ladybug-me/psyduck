@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psyduck"
+version = "0.1.0"
+description = "Psyduck - Fashion designer and outfit selector"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "requests",
+    "python-dotenv",
+    "sentence-transformers",
+    "faiss-cpu",
+    "numpy",
+    "pandas",
+    "kagglehub",
+]

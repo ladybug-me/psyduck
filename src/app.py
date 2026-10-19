@@ -3,14 +3,22 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import requests, os, uuid, threading, sqlite3, numpy as np, faiss, json, html, time, datetime
+import requests, os, sys, uuid, threading, sqlite3, numpy as np, faiss, json, html, time, datetime, re
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-# ===================================
-# 🔍 Debug logging
-# ===================================
-LOG_FILE = os.path.join(os.getcwd(), "psyduck_intent_log.txt")
+
+# PATH & SYSTEM CONFIGURATION
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
+
+
+# Debug logging
+LOG_FILE = os.path.join(PROJECT_DIR, "psyduck_intent_log.txt")
 
 def log_event(event_type, message):
     """Append structured log events to a text file."""
@@ -22,50 +30,58 @@ def log_event(event_type, message):
     except Exception as e:
         print(f"[LOG ERROR] {e}")
 
-# ===================================
-# 🔧 CONFIGURATION
-# ===================================
+
+# CONFIGURATION
 load_dotenv()
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "0.0.0.0")  # Windows IP for WSL
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "127.0.0.1")  # Host IP for Ollama (127.0.0.1 or Windows host in WSL)
 OLLAMA_PORT = os.getenv("OLLAMA_PORT", "11434")
 OLLAMA_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}/api/generate"
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:120b-cloud")
 
+def get_ollama_model() -> str:
+    """Return configured Ollama model from environment or fallback default."""
+    return os.getenv("OLLAMA_MODEL") or OLLAMA_MODEL
+
 MAX_TURNS = 12
 MAX_MESSAGE_LENGTH = 1500
 
-DB_PATH = os.path.join(os.getcwd(), "data", "fashion.db")
-INDEX_PATH = "data/fashion.index"
+DATA_DIR = os.path.join(PROJECT_DIR, "data")
+DB_PATH = os.path.join(DATA_DIR, "fashion.db")
+INDEX_PATH = os.path.join(DATA_DIR, "fashion.index")
 EMBED_MODEL = "all-mpnet-base-v2"
 
-# ===================================
-# 🧠 LOAD COMPONENTS
-# ===================================
-print("🧠 Loading outfit recommender...")
+
+# LOAD COMPONENTS
+print("[INFO] Loading outfit recommender...")
 model = SentenceTransformer(EMBED_MODEL)
-index = faiss.read_index(INDEX_PATH)
-print("✅ Recommender ready!")
+index = None
+if os.path.exists(INDEX_PATH):
+    try:
+        index = faiss.read_index(INDEX_PATH)
+        print("[INFO] Recommender index ready.")
+    except Exception as e:
+        print(f"[WARNING] Failed to load FAISS index from '{INDEX_PATH}': {e}")
+else:
+    print(f"[WARNING] 'fashion.index' not found at '{INDEX_PATH}'. Run data/build_database.py or run.sh.")
 
-# ===================================
-# 🚀 FASTAPI SETUP
-# ===================================
-app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-image_dir = os.path.join(os.getcwd(), "data/database")
+# FASTAPI SETUP
+app = FastAPI(title="Psyduck Outfit Assistant")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+image_dir = os.path.join(DATA_DIR, "database")
 if os.path.exists(image_dir):
     app.mount("/images", StaticFiles(directory=image_dir), name="images")
 else:
-    print("⚠️ Warning: 'data/database' folder not found. Images won't be served.")
+    print(f"[WARNING] '{image_dir}' folder not found. Images will not be served.")
 
 conversation_store = {}
 store_lock = threading.Lock()
 
-# ===================================
-# 🧩 HELPERS
-# ===================================
+
+# HELPERS
 def trim_text(text: str) -> str:
     return (text[:MAX_MESSAGE_LENGTH] + "...") if len(text) > MAX_MESSAGE_LENGTH else text
 
@@ -109,9 +125,8 @@ def parse_ollama_response(resp_text: str) -> str:
             continue
     return final.strip()
 
-# ===================================
-# 🧩 Intent Manager (multi-turn)
-# ===================================
+
+# Intent Manager (multi-turn)
 class IntentManager:
     # UPDATED: Removed 'season', added 'category' and 'color'
     REQUIRED_FIELDS = ["occasion", "category", "formality", "gender", "color", "style"]
@@ -149,9 +164,9 @@ class IntentManager:
 intent_manager = IntentManager()
 
 
-# ===================================
-# 🧭 FIELD DEFINITIONS & NORMALIZER
-# ===================================
+
+# FIELD DEFINITIONS & NORMALIZER
+
 FIELD_DEFINITIONS = {
     "occasion": "the event type such as wedding, party, interview, picnic, or office.",
     "category": "the type of clothing item, such as a T-shirt, jeans, shoes, or a jacket.",
@@ -206,9 +221,9 @@ def normalize_field_value(field: str, val: str) -> str:
                     return v
     return val
 
-# ===================================
-# 🧠 INTENT HELPER (Reusable Logic v4 - Smarter Inference)
-# ===================================
+
+# INTENT HELPER
+
 async def begin_intent_flow(user_query: str):
     """
     Reusable helper function to start an intent session and pre-fill.
@@ -217,11 +232,11 @@ async def begin_intent_flow(user_query: str):
     if not user_query:
         return {"error": "Empty query."}
 
-    # 🧠 Step 1: Create a new session
+    # Step 1: Create a new session
     session_id, session = intent_manager.start(user_query)
     log_event("session_start", f"Session={session_id} | Query='{user_query}'")
 
-    # 🧠 Step 2: Try to "pre-fill" the intent (with a better prompt)
+    # Step 2: Try to pre-fill the intent
     extract_prompt = (
         f"You are an expert fashion entity extractor. Fill a JSON object based on the user's request. Leave unmentioned fields as null.\n"
         f"--- FIELDS ---\n"
@@ -254,20 +269,22 @@ async def begin_intent_flow(user_query: str):
     try:
         r = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": extract_prompt, "stream": False, "format": "json"},
+            json={"model": get_ollama_model(), "prompt": extract_prompt, "stream": False, "format": "json"},
             timeout=60
         )
         r.raise_for_status()
         
-        raw_res = r.json().get("response", "{}")
-        if not raw_res.startswith("{"):
-            raw_res = "{" + raw_res.split("{", 1)[-1]
-        if not raw_res.endswith("}"):
-            raw_res = raw_res.rsplit("}", 1)[0] + "}"
+        raw_res = r.json().get("response", "{}").strip()
+        if "```" in raw_res:
+            m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_res, re.DOTALL)
+            if m:
+                raw_res = m.group(1)
+        if "{" in raw_res and "}" in raw_res:
+            raw_res = raw_res[raw_res.find("{"):raw_res.rfind("}")+1]
 
-        extracted_data = json.loads(raw_res.strip())
+        extracted_data = json.loads(raw_res) if raw_res else {}
 
-        # 🧠 Step 3: Fill the session with extracted values
+        # Step 3: Fill the session with extracted values
         filled_count = 0
         for field in IntentManager.REQUIRED_FIELDS:
             val = extracted_data.get(field)
@@ -283,14 +300,14 @@ async def begin_intent_flow(user_query: str):
         log_event("prefill_error", f"Session={session_id} | Error={e} | Response='{raw_res}'")
         pass # Continue anyway
 
-    # 🧠 Step 4: Find the first *missing* field
+    # Step 4: Find the first missing field
     current_field = session["current_field"]
 
     if not current_field:
         log_event("intent_complete", f"Session={session_id} | Completed via pre-fill | Final={session['intent']}")
         return {"complete": True, "intent": session["intent"], "session_id": session_id, "question": "Thanks! I've got everything I need!"}
 
-    # 🧠 Step 5: Ask the first question (with new, creative prompt)
+    # Step 5: Ask the first question
     
     # Get the current intent state for context
     intent_context = ", ".join([f"{k}: {v}" for k, v in session['intent'].items() if v])
@@ -310,7 +327,7 @@ async def begin_intent_flow(user_query: str):
     try:
         r_q = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": ask_prompt, "stream": False},
+            json={"model": get_ollama_model(), "prompt": ask_prompt, "stream": False},
             timeout=60
         )
         r_q.raise_for_status()
@@ -329,12 +346,12 @@ async def begin_intent_flow(user_query: str):
         "intent": session["intent"],
         "complete": False
     }
-# ===================================
-# 🌐 ROUTES
-# ===================================
+
+# ROUTES
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 # ---- Chat (with Triage v2) ----
@@ -347,7 +364,7 @@ async def chat(data: ChatInput):
     conv_id = data.conversation_id or str(uuid.uuid4())
     user_text = data.text.strip()
     if not user_text:
-        return {"reply": "Please say something 🐤", "conversation_id": conv_id}
+        return {"reply": "Please enter a message.", "conversation_id": conv_id}
 
     # Get conversation history for context
     with store_lock:
@@ -363,7 +380,7 @@ async def chat(data: ChatInput):
     context_str = "\n".join(history_context)
     append_message(conv_id, "user", user_text) # Append the new message *after* getting history
 
-    # 🧠 Step 1: Triage (Smarter, with context)
+    # Step 1: Triage
     
     # This prompt now classifies refinements as NEW_REQUEST
     triage_prompt = (
@@ -380,7 +397,7 @@ async def chat(data: ChatInput):
     try:
         r_triage = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": triage_prompt, "stream": False},
+            json={"model": get_ollama_model(), "prompt": triage_prompt, "stream": False},
             timeout=60
         )
         r_triage.raise_for_status()
@@ -398,7 +415,7 @@ async def chat(data: ChatInput):
 
     # ... (rest of the /chat function) ...
     
-    # 🧠 Step 2: Handle based on Triage
+    # Step 2: Handle based on Triage
     
     # --- PATH A: It's a NEW outfit request -> Start intent flow ---
     if is_new_request:
@@ -407,7 +424,7 @@ async def chat(data: ChatInput):
         intent_data = await begin_intent_flow(user_query=user_text)
         
         if "error" in intent_data:
-             return {"reply": f"⚠️ Error starting intent flow: {intent_data['error']}", "conversation_id": conv_id}
+             return {"reply": f"Error starting intent flow: {intent_data['error']}", "conversation_id": conv_id}
         
         reply = intent_data.get("question", "So, what's the occasion?")
         append_message(conv_id, "bot", reply)
@@ -423,7 +440,7 @@ async def chat(data: ChatInput):
     # --- PATH B: It's just a FOLLOW_UP or general chat ---
     prompt = build_prompt(conv_id, user_text) # build_prompt now includes the new user message
     try:
-        res = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}, timeout=60)
+        res = requests.post(OLLAMA_URL, json={"model": get_ollama_model(), "prompt": prompt, "stream": False}, timeout=60)
         res.raise_for_status() # Fixed typo
         reply = parse_ollama_response(res.text) or "Hmm… Psyduck’s having a tiny brain fog."
         append_message(conv_id, "bot", reply)
@@ -431,11 +448,11 @@ async def chat(data: ChatInput):
         return {"reply": reply, "conversation_id": conv_id}
         
     except Exception as e:
-        return {"reply": f"⚠️ Error: {e}", "conversation_id": conv_id}
+        return {"reply": f"Error: {e}", "conversation_id": conv_id}
 
-# ===================================
-# 🧠 INTENT START
-# ===================================
+
+# INTENT START
+
 @app.post("/intent/start")
 async def intent_start(body: dict):
     """
@@ -449,9 +466,9 @@ async def intent_start(body: dict):
     
     return result
 
-# ===================================
-# 🧠 INTENT ANSWER (with Triage v3 - Few-Shot & Creative)
-# ===================================
+
+# INTENT ANSWER
+
 @app.post("/intent/answer")
 async def intent_answer(body: dict):
     """
@@ -472,7 +489,7 @@ async def intent_answer(body: dict):
     if not current_field:
         return {"complete": True, "intent": session["intent"]}
 
-    # 🧠 Step 1: Triage - Is this an answer or a question?
+    # Step 1: Triage - Is this an answer or a question?
     triage_prompt = (
         f"You are a text classifier. Your *only* job is to output one of two words: 'QUESTION' or 'ANSWER'.\n\n"
         "A 'QUESTION' is when the user is confused, asks for a definition, or asks *about* the field (e.g., 'what does that mean?', 'why?', 'what is formality?').\n"
@@ -492,7 +509,7 @@ async def intent_answer(body: dict):
     try:
         r_triage = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": triage_prompt, "stream": False},
+            json={"model": get_ollama_model(), "prompt": triage_prompt, "stream": False},
             timeout=60
         )
         r_triage.raise_for_status()
@@ -506,7 +523,7 @@ async def intent_answer(body: dict):
         log_event("triage_error", f"Session={session_id} | Field={current_field} | Error={e}")
         triage_result = "ANSWER"
 
-    # 🧠 Step 2: Handle based on Triage
+    # Step 2: Handle based on Triage
     
     # --- PATH A: User is asking a QUESTION ---
     if triage_result == "QUESTION":
@@ -522,7 +539,7 @@ async def intent_answer(body: dict):
         try:
             r2 = requests.post(
                 OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "prompt": clarify_prompt, "stream": False},
+                json={"model": get_ollama_model(), "prompt": clarify_prompt, "stream": False},
                 timeout=60
             )
             r2.raise_for_status()
@@ -547,7 +564,7 @@ async def intent_answer(body: dict):
     try:
         r = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": interpret_prompt, "stream": False},
+            json={"model": get_ollama_model(), "prompt": interpret_prompt, "stream": False},
             timeout=60
         )
         r.raise_for_status()
@@ -567,7 +584,7 @@ async def intent_answer(body: dict):
             "intent": session["intent"], "note": "extraction_failed"
         }
 
-    # 🧠 Step 3: Normalize and set the field
+    # Step 3: Normalize and set the field
     val = normalize_field_value(current_field, val)
     intent_manager.set_field(session_id, current_field, val)
     session = intent_manager.get(session_id) # Get updated session
@@ -578,7 +595,7 @@ async def intent_answer(body: dict):
         log_event("intent_complete", f"Session={session_id} | Final={final_intent}")
         return {"complete": True, "intent": final_intent, "session_id": session_id}
 
-    # 🧠 Step 4: Ask model to generate next field question (with new, creative prompt)
+    # Step 4: Ask model to generate next field question
     
     # Get the current intent state for context
     intent_context = ", ".join([f"{k}: {v}" for k, v in session['intent'].items() if v])
@@ -598,7 +615,7 @@ async def intent_answer(body: dict):
     try:
         r3 = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": ask_prompt, "stream": False},
+            json={"model": get_ollama_model(), "prompt": ask_prompt, "stream": False},
             timeout=60
         )
         r3.raise_for_status()
@@ -615,15 +632,18 @@ async def intent_answer(body: dict):
         "intent": session["intent"]
     }
 
-# ===================================
-# 🧠 RECOMMEND (High-Performance v2 - Smarter Query)
-# ===================================
+
+# RECOMMEND
+
 @app.post("/recommend", response_class=JSONResponse)
 async def recommend(data: dict):
     query = (data.get("query") or "").strip()
     intent = data.get("intent") or {}
     if not query:
         return JSONResponse({"error": "Empty query."}, status_code=400)
+
+    if not os.path.exists(DB_PATH) or index is None:
+        return JSONResponse({"error": "Database or FAISS index not ready. Please run setup.sh to build the database."}, status_code=503)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -745,23 +765,42 @@ async def reset(data: ResetInput):
 @app.get("/logs", response_class=PlainTextResponse)
 async def view_logs():
     if not os.path.exists(LOG_FILE):
-        return PlainTextResponse("🪶 No logs yet!", status_code=200)
+        return PlainTextResponse("No logs recorded yet.", status_code=200)
     try:
         with open(LOG_FILE, "r", encoding="utf-8") as f:
             content = f.read().strip()
-        return PlainTextResponse(content[-8000:] or "🪶 Log empty.", status_code=200)
+        return PlainTextResponse(content[-8000:] or "Log is empty.", status_code=200)
     except Exception as e:
-        return PlainTextResponse(f"⚠️ Error reading logs: {e}", status_code=500)
+        return PlainTextResponse(f"Error reading logs: {e}", status_code=500)
 
 # ---- Health ----
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "model": get_ollama_model()}
 
-# ===================================
-# 🚀 RUN
-# ===================================
+
+# RUN
+
 if __name__ == "__main__":
+    import argparse
     import uvicorn
-    print("🚀 Psyduck web app running at http://127.0.0.1:8000")
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+
+    parser = argparse.ArgumentParser(description="Psyduck Outfit Assistant Server")
+    parser.add_argument(
+        "-m", "--model",
+        type=str,
+        default=None,
+        help="Ollama model name (e.g. llama3, qwen2.5-coder:3b, gemma3:1b, gpt-oss:120b-cloud)"
+    )
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address to bind (default: 127.0.0.1)")
+    parser.add_argument("-p", "--port", type=int, default=8000, help="Port to bind (default: 8000)")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload on code change")
+    args = parser.parse_args()
+
+    selected_model = args.model or os.getenv("OLLAMA_MODEL") or OLLAMA_MODEL
+    os.environ["OLLAMA_MODEL"] = selected_model
+    OLLAMA_MODEL = selected_model
+
+    print(f"[INFO] Psyduck server listening at http://{args.host}:{args.port}")
+    print(f"[INFO] Active Ollama model: '{selected_model}'")
+    uvicorn.run("app:app", host=args.host, port=args.port, app_dir=BASE_DIR, reload=args.reload)

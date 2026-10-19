@@ -1,6 +1,28 @@
+# Virtual environment
 .venv/
+.env
+
+# Editor & IDE
 .vscode/
+.idea/
+
+# Python bytecode & cache
 *__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Runtime Logs
+psyduck_intent_log.txt
+*.log
+
+# Build & packaging
+build/
+dist/
+*.egg-info/
+
+# Data artifacts (large files & generated indices)
 data/data
 data/database
 data/data.csv

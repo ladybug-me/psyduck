@@ -14,6 +14,12 @@ Psyduck is an AI-powered fashion designer and outfit recommendation system. It c
 
 ---
 
+## Screenshots
+
+| Interface | Results |
+| :---: | :---: |
+|![Interface](assets/interface.png) | ![Results](assets/results.png) |
+
 ## Quick Start (Automated Server Manager)
 
 The recommended way to run and manage Psyduck is using `run.sh`:
